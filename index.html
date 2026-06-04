@@ -12,25 +12,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body { background: #0a0e1a; overflow-x: hidden; color: #e2e8f0; font-family: "Noto Sans TC","Microsoft JhengHei",sans-serif; }
-  #loading { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; gap:16px; }
-  .spinner { width:48px; height:48px; border:4px solid #1e3a5f; border-top-color:#f59e0b; border-radius:50%; animation:spin 1s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
+  body { background: #0a0e1a; overflow-x: hidden; }
 </style>
 </head>
 <body>
-<div id="loading">
-  <div class="spinner"></div>
-  <div style="color:#f59e0b;font-size:16px;font-weight:700">載入最新開獎資料...</div>
-  <div style="color:#64748b;font-size:12px">從伺服器抓取中</div>
-</div>
-<div id="root" style="display:none"></div>
+<div id="root"></div>
 <script type="text/babel">
 const { useState, useMemo } = React;
 
 
-let RAW_DATA = [];nst RAW_DATA = [
+const RAW_DATA = [
   // ── 2026-06 ──
+  { period: 11897, date: "2026-06-04", weekday: 4, nums: [9,17,28,29,33] },
   { period: 11896, date: "2026-06-03", weekday: 3, nums: [5,11,19,25,31] },
   { period: 11895, date: "2026-06-02", weekday: 2, nums: [6,14,23,28,37] },
   { period: 11894, date: "2026-06-01", weekday: 1, nums: [4,9,15,20,30] },
@@ -1416,21 +1409,7 @@ function App() {
   );
 }
 
-async function init() {
-  try {
-    const res = await fetch('data/lottery.json?t=' + Date.now());
-    if (res.ok) {
-      const json = await res.json();
-      RAW_DATA = json.sort((a,b) => b.period - a.period);
-    }
-  } catch(e) {
-    console.log('使用內建資料');
-  }
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('root').style.display = 'block';
-  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-}
-init();
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
