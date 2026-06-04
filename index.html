@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="天天樂分析">
+<title>加州天天樂 智能分析系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: #0a0e1a; overflow-x: hidden; color: #e2e8f0; font-family: "Noto Sans TC","Microsoft JhengHei",sans-serif; }
+  #loading { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; gap:16px; }
+  .spinner { width:48px; height:48px; border:4px solid #1e3a5f; border-top-color:#f59e0b; border-radius:50%; animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="loading">
+  <div class="spinner"></div>
+  <div style="color:#f59e0b;font-size:16px;font-weight:700">載入最新開獎資料...</div>
+  <div style="color:#64748b;font-size:12px">從伺服器抓取中</div>
+</div>
+<div id="root" style="display:none"></div>
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+
+let RAW_DATA = [];nst RAW_DATA = [
+  // ── 2026-06 ──
+  { period: 11896, date: "2026-06-03", weekday: 3, nums: [5,11,19,25,31] },
+  { period: 11895, date: "2026-06-02", weekday: 2, nums: [6,14,23,28,37] },
+  { period: 11894, date: "2026-06-01", weekday: 1, nums: [4,9,15,20,30] },
+  // ── 2026-05 ──
+  { period: 11893, date: "2026-05-31", weekday: 0, nums: [1,15,21,23,24] },
+  { period: 11892, date: "2026-05-30", weekday: 6, nums: [2,5,27,35,36] },
+  { period: 11891, date: "2026-05-29", weekday: 5, nums: [2,12,20,30,34] },
+  { period: 11890, date: "2026-05-28", weekday: 4, nums: [7,15,16,22,30] },
+  { period: 11889, date: "2026-05-27", weekday: 3, nums: [2,6,19,22,27] },
+  { period: 11888, date: "2026-05-26", weekday: 2, nums: [2,14,34,35,39] },
+  { period: 11887, date: "2026-05-25", weekday: 1, nums: [2,4,11,12,24] },
+  { period: 11886, date: "2026-05-24", weekday: 0, nums: [7,26,33,35,37] },
+  { period: 11885, date: "2026-05-23", weekday: 6, nums: [6,14,16,28,36] },
+  { period: 11884, date: "2026-05-22", weekday: 5, nums: [1,6,11,34,39] },
+  { period: 11883, date: "2026-05-21", weekday: 4, nums: [2,10,16,20,39] },
+  { period: 11882, date: "2026-05-20", weekday: 3, nums: [9,13,15,18,19] },
+  { period: 11881, date: "2026-05-19", weekday: 2, nums: [11,16,30,31,33] },
+  { period: 11880, date: "2026-05-18", weekday: 1, nums: [3,12,15,29,33] },
+  { period: 11879, date: "2026-05-17", weekday: 0, nums: [10,12,21,22,30] },
+  { period: 11878, date: "2026-05-16", weekday: 6, nums: [6,10,26,29,33] },
+  { period: 11877, date: "2026-05-15", weekday: 5, nums: [1,8,31,32,38] },
+  { period: 11876, date: "2026-05-14", weekday: 4, nums: [4,19,23,24,32] },
+  { period: 11875, date: "2026-05-13", weekday: 3, nums: [8,17,25,31,33] },
+  { period: 11874, date: "2026-05-12", weekday: 2, nums: [14,17,19,29,38] },
+  { period: 11873, date: "2026-05-11", weekday: 1, nums: [9,11,17,25,29] },
+  { period: 11872, date: "2026-05-10", weekday: 0, nums: [4,11,12,28,35] },
+  { period: 11871, date: "2026-05-09", weekday: 6, nums: [5,9,12,14,15] },
+  { period: 11870, date: "2026-05-08", weekday: 5, nums: [3,8,12,26,29] },
+  { period: 11869, date: "2026-05-07", weekday: 4, nums: [2,5,13,16,36] },
+  { period: 11868, date: "2026-05-06", weekday: 3, nums: [8,13,18,32,36] },
+  { period: 11867, date: "2026-05-05", weekday: 2, nums: [9,13,17,19,31] },
+  { period: 11866, date: "2026-05-04", weekday: 1, nums: [5,10,14,16,22] },
+  { period: 11865, date: "2026-05-03", weekday: 0, nums: [11,16,18,20,23] },
+  { period: 11864, date: "2026-05-02", weekday: 6, nums: [8,19,28,35,36] },
+  { period: 11863, date: "2026-05-01", weekday: 5, nums: [10,14,21,33,39] },
+  // ── 2026-04 ──
+  { period: 11862, date: "2026-04-30", weekday: 4, nums: [1,5,20,21,39] },
+  { period: 11861, date: "2026-04-29", weekday: 3, nums: [14,19,33,37,38] },
+  { period: 11860, date: "2026-04-28", weekday: 2, nums: [2,4,5,10,31] },
+  { period: 11859, date: "2026-04-27", weekday: 1, nums: [9,11,18,33,37] },
+  { period: 11858, date: "2026-04-26", weekday: 0, nums: [1,5,6,20,34] },
+  { period: 11857, date: "2026-04-25", weekday: 6, nums: [3,6,18,29,34] },
+  { period: 11856, date: "2026-04-24", weekday: 5, nums: [15,17,30,34,35] },
+  { period: 11855, date: "2026-04-23", weekday: 4, nums: [9,14,19,30,33] },
+  { period: 11854, date: "2026-04-22", weekday: 3, nums: [2,11,12,35,39] },
+  { period: 11853, date: "2026-04-21", weekday: 2, nums: [7,17,36,38,39] },
+  { period: 11852, date: "2026-04-20", weekday: 1, nums: [13,16,23,33,36] },
+  { period: 11851, date: "2026-04-19", weekday: 0, nums: [1,10,13,14,31] },
+  { period: 11850, date: "2026-04-18", weekday: 6, nums: [9,10,23,24,25] },
+  { period: 11849, date: "2026-04-17", weekday: 5, nums: [8,10,21,22,38] },
+  { period: 11848, date: "2026-04-16", weekday: 4, nums: [21,28,30,32,39] },
+  { period: 11847, date: "2026-04-15", weekday: 3, nums: [2,8,23,33,34] },
+  { period: 11846, date: "2026-04-14", weekday: 2, nums: [3,13,20,29,37] },
+  { period: 11845, date: "2026-04-13", weekday: 1, nums: [14,16,20,22,38] },
+  { period: 11844, date: "2026-04-12", weekday: 0, nums: [10,16,18,27,28] },
+  { period: 11843, date: "2026-04-11", weekday: 6, nums: [11,12,28,29,31] },
+  { period: 11842, date: "2026-04-10", weekday: 5, nums: [1,5,17,23,32] },
+  { period: 11841, date: "2026-04-09", weekday: 4, nums: [6,7,8,27,32] },
+  { period: 11840, date: "2026-04-08", weekday: 3, nums: [4,8,23,28,29] },
+  { period: 11839, date: "2026-04-07", weekday: 2, nums: [4,5,20,21,39] },
+  { period: 11838, date: "2026-04-06", weekday: 1, nums: [4,13,16,19,37] },
+  { period: 11837, date: "2026-04-05", weekday: 0, nums: [1,4,9,18,32] },
+  { period: 11836, date: "2026-04-04", weekday: 6, nums: [14,15,23,30,37] },
+  { period: 11835, date: "2026-04-03", weekday: 5, nums: [7,21,25,31,37] },
+  { period: 11834, date: "2026-04-02", weekday: 4, nums: [7,12,16,20,32] },
+  { period: 11833, date: "2026-04-01", weekday: 3, nums: [4,5,10,13,32] },
+  // ── 2026-03 ──
+  { period: 11832, date: "2026-03-31", weekday: 2, nums: [1,9,18,31,36] },
+  { period: 11831, date: "2026-03-30", weekday: 1, nums: [1,3,14,20,29] },
+  { period: 11830, date: "2026-03-29", weekday: 0, nums: [2,10,16,27,39] },
+  { period: 11829, date: "2026-03-28", weekday: 6, nums: [4,6,25,26,33] },
+  { period: 11828, date: "2026-03-27", weekday: 5, nums: [2,17,18,26,35] },
+  { period: 11827, date: "2026-03-26", weekday: 4, nums: [4,5,17,24,38] },
+  { period: 11826, date: "2026-03-25", weekday: 3, nums: [9,12,20,23,26] },
+  { period: 11825, date: "2026-03-24", weekday: 2, nums: [4,9,17,26,35] },
+  { period: 11824, date: "2026-03-23", weekday: 1, nums: [4,7,10,28,37] },
+  { period: 11823, date: "2026-03-22", weekday: 0, nums: [4,30,33,37,39] },
+  { period: 11822, date: "2026-03-21", weekday: 6, nums: [13,18,27,31,32] },
+  { period: 11821, date: "2026-03-20", weekday: 5, nums: [3,14,20,27,37] },
+  { period: 11820, date: "2026-03-19", weekday: 4, nums: [8,13,21,27,31] },
+  { period: 11819, date: "2026-03-18", weekday: 3, nums: [12,19,20,30,36] },
+  { period: 11818, date: "2026-03-17", weekday: 2, nums: [10,12,13,19,26] },
+  { period: 11817, date: "2026-03-16", weekday: 1, nums: [13,23,25,34,36] },
+  { period: 11816, date: "2026-03-15", weekday: 0, nums: [14,17,24,34,35] },
+  { period: 11815, date: "2026-03-14", weekday: 6, nums: [9,21,23,27,33] },
+  { period: 11814, date: "2026-03-13", weekday: 5, nums: [9,15,18,26,35] },
+  { period: 11813, date: "2026-03-12", weekday: 4, nums: [16,19,21,29,38] },
+  { period: 11812, date: "2026-03-11", weekday: 3, nums: [18,24,28,34,39] },
+  { period: 11811, date: "2026-03-10", weekday: 2, nums: [21,22,32,35,38] },
+  { period: 11810, date: "2026-03-09", weekday: 1, nums: [4,14,15,23,29] },
+  { period: 11809, date: "2026-03-08", weekday: 0, nums: [10,19,29,33,36] },
+  { period: 11808, date: "2026-03-07", weekday: 6, nums: [10,15,31,35,38] },
+  { period: 11807, date: "2026-03-06", weekday: 5, nums: [3,17,18,27,35] },
+  { period: 11806, date: "2026-03-05", weekday: 4, nums: [1,3,4,13,17] },
+  { period: 11805, date: "2026-03-04", weekday: 3, nums: [12,13,16,25,38] },
+  { period: 11804, date: "2026-03-03", weekday: 2, nums: [6,7,30,32,33] },
+  { period: 11803, date: "2026-03-02", weekday: 1, nums: [8,10,11,21,29] },
+  { period: 11802, date: "2026-03-01", weekday: 0, nums: [10,13,24,32,38] },
+  // ── 2026-02 ──
+  { period: 11801, date: "2026-02-28", weekday: 6, nums: [26,29,30,31,32] },
+  { period: 11800, date: "2026-02-27", weekday: 5, nums: [3,9,10,20,27] },
+  { period: 11799, date: "2026-02-26", weekday: 4, nums: [5,7,10,33,34] },
+  { period: 11798, date: "2026-02-25", weekday: 3, nums: [3,4,14,31,33] },
+  { period: 11797, date: "2026-02-24", weekday: 2, nums: [3,10,20,26,30] },
+  { period: 11796, date: "2026-02-23", weekday: 1, nums: [3,24,25,34,37] },
+  // ── 2026-01 ──
+  { period: 11770, date: "2026-01-28", weekday: 3, nums: [1,4,22,33,39] },
+  { period: 11767, date: "2026-01-25", weekday: 0, nums: [5,8,25,33,35] },
+  { period: 11764, date: "2026-01-22", weekday: 4, nums: [13,14,18,26,32] },
+  { period: 11763, date: "2026-01-21", weekday: 3, nums: [7,8,13,22,28] },
+  { period: 11762, date: "2026-01-20", weekday: 2, nums: [11,19,22,27,30] },
+  { period: 11761, date: "2026-01-19", weekday: 1, nums: [16,18,19,31,37] },
+  { period: 11760, date: "2026-01-18", weekday: 0, nums: [8,18,28,33,39] },
+  { period: 11759, date: "2026-01-17", weekday: 6, nums: [3,8,16,31,33] },
+  { period: 11758, date: "2026-01-16", weekday: 5, nums: [6,18,28,32,36] },
+  { period: 11757, date: "2026-01-15", weekday: 4, nums: [2,9,12,25,39] },
+  { period: 11756, date: "2026-01-14", weekday: 3, nums: [4,9,25,27,35] },
+  { period: 11751, date: "2026-01-09", weekday: 5, nums: [2,15,19,24,36] },
+  { period: 11750, date: "2026-01-08", weekday: 4, nums: [2,3,9,11,31] },
+  { period: 11749, date: "2026-01-07", weekday: 3, nums: [1,10,28,31,39] },
+  { period: 11748, date: "2026-01-06", weekday: 2, nums: [5,9,15,21,24] },
+  { period: 11747, date: "2026-01-05", weekday: 1, nums: [9,19,20,26,32] },
+  { period: 11746, date: "2026-01-04", weekday: 0, nums: [1,4,34,37,39] },
+  { period: 11745, date: "2026-01-03", weekday: 6, nums: [9,14,19,20,24] },
+  { period: 11744, date: "2026-01-02", weekday: 5, nums: [13,14,24,25,35] },
+  { period: 11743, date: "2026-01-01", weekday: 4, nums: [1,3,9,11,21] },
+  // ── 2025-12 ──
+  { period: 11742, date: "2025-12-31", weekday: 3, nums: [10,12,22,28,37] },
+  { period: 11741, date: "2025-12-30", weekday: 2, nums: [1,8,13,17,20] },
+  { period: 11740, date: "2025-12-29", weekday: 1, nums: [1,21,22,33,35] },
+  { period: 11739, date: "2025-12-28", weekday: 0, nums: [8,9,20,26,36] },
+  { period: 11738, date: "2025-12-27", weekday: 6, nums: [2,6,7,8,35] },
+  { period: 11737, date: "2025-12-26", weekday: 5, nums: [5,17,20,29,38] },
+  { period: 11736, date: "2025-12-25", weekday: 4, nums: [7,11,18,28,30] },
+  { period: 11735, date: "2025-12-24", weekday: 3, nums: [5,14,15,19,26] },
+  { period: 11734, date: "2025-12-23", weekday: 2, nums: [1,14,16,18,19] },
+  { period: 11733, date: "2025-12-22", weekday: 1, nums: [15,23,26,28,37] },
+  { period: 11712, date: "2025-12-01", weekday: 1, nums: [1,13,19,23,28] },
+  // ── 2025-11 ──
+  { period: 11711, date: "2025-11-30", weekday: 0, nums: [3,6,11,13,29] },
+  { period: 11710, date: "2025-11-29", weekday: 6, nums: [10,13,33,38,39] },
+  { period: 11709, date: "2025-11-28", weekday: 5, nums: [1,7,17,26,29] },
+  { period: 11708, date: "2025-11-27", weekday: 4, nums: [10,14,18,22,29] },
+  { period: 11707, date: "2025-11-26", weekday: 3, nums: [2,15,20,33,35] },
+  { period: 11706, date: "2025-11-25", weekday: 2, nums: [18,21,25,30,39] },
+  { period: 11705, date: "2025-11-24", weekday: 1, nums: [4,14,30,33,38] },
+  { period: 11704, date: "2025-11-23", weekday: 0, nums: [7,19,21,23,37] },
+  { period: 11703, date: "2025-11-22", weekday: 6, nums: [8,14,24,26,32] },
+  { period: 11702, date: "2025-11-21", weekday: 5, nums: [2,5,11,36,37] },
+  { period: 11701, date: "2025-11-20", weekday: 4, nums: [11,14,15,16,17] },
+];
+
+const WEEKDAY_NAMES = ["日","一","二","三","四","五","六"];
+const WEEKDAY_FULL = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
+
+function App() {
+  const [activeTab, setActiveTab] = useState("missing");
+  const [historySearch, setHistorySearch] = useState("");
+
+  // ── 1. 近10期未出號碼 ──────────────────────────────────
+  const missingNumbers = useMemo(() => {
+    const recent10 = RAW_DATA.slice(0, 10);
+    const appeared = new Set(recent10.flatMap(d => d.nums));
+    const missing = [];
+    for (let i = 1; i <= 39; i++) if (!appeared.has(i)) missing.push(i);
+    // 計算每個號碼最後出現距今多少期
+    const lastSeen = {};
+    RAW_DATA.forEach((d, idx) => d.nums.forEach(n => { if (!(n in lastSeen)) lastSeen[n] = idx; }));
+    return missing.map(n => ({ num: n, gap: lastSeen[n] ?? 50 })).sort((a,b) => b.gap - a.gap);
+  }, []);
+
+  // ── 2. 每週各天歷史號碼 ────────────────────────────────
+  const weekdayHistory = useMemo(() => {
+    const map = Array.from({length:7}, () => []);
+    RAW_DATA.forEach(d => map[d.weekday].push(d));
+    return map;
+  }, []);
+
+  // 各天最常出現號碼
+  const weekdayFreq = useMemo(() => {
+    const map = Array.from({length:7}, () => []);
+    RAW_DATA.forEach(d => map[d.weekday].push(d));
+    return map.map(draws => {
+      const freq = {};
+      draws.forEach(d => d.nums.forEach(n => freq[n] = (freq[n]||0)+1));
+      return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([n,c])=>({num:+n,cnt:c}));
+    });
+  }, []);
+
+  // ── 3. 牽引分析（關聯性邏輯）────────────────────────────
+  // 核心邏輯：
+  // 今天是週X，開出號碼 A,B,C,D,E
+  // → 找歷史上所有「同週X也開過 A 或 B 或 C...」的期數
+  // → 看那些期數的「隔天」開了什麼號碼
+  // → 統計隔天號碼出現頻率 → 頻率高 = 明日關聯號碼
+  const tractionAnalysis = useMemo(() => {
+    const today = RAW_DATA[0];
+    const todayWd = today.weekday;
+
+    // 建立 period → 隔天 的 map
+    const nextDayMap = {};
+    RAW_DATA.forEach(d => {
+      const next = RAW_DATA.find(x => x.period === d.period + 1);
+      if (next) nextDayMap[d.period] = next;
+    });
+
+    // 對今天每個號碼，找歷史同週幾也有這個號碼的期次（排除今天自己）
+    const numAnalysis = today.nums.map(targetNum => {
+      // 歷史同週X有出現此號碼的期次
+      const matchedPeriods = RAW_DATA.filter(d =>
+        d.period !== today.period &&
+        d.weekday === todayWd &&
+        d.nums.includes(targetNum)
+      );
+
+      // 各期的隔天號碼
+      const nextDayNums = {};
+      const nextDayDetails = [];
+      matchedPeriods.forEach(d => {
+        const next = nextDayMap[d.period];
+        if (next) {
+          next.nums.forEach(n => {
+            nextDayNums[n] = (nextDayNums[n] || 0) + 1;
+          });
+          nextDayDetails.push({ src: d, next });
+        }
+      });
+
+      // 排序頻率
+      const freqList = Object.entries(nextDayNums)
+        .sort((a,b) => b[1]-a[1])
+        .map(([n,c]) => ({ num: +n, cnt: c }));
+
+      return { targetNum, matchedPeriods, nextDayDetails, freqList };
+    });
+
+    // 合併所有號碼的隔天頻率（加權：被多個今日號碼牽引到的更強）
+    const combinedFreq = {};
+    numAnalysis.forEach(({ freqList }) => {
+      freqList.forEach(({ num, cnt }) => {
+        combinedFreq[num] = (combinedFreq[num] || 0) + cnt;
+      });
+    });
+
+    const predictedList = Object.entries(combinedFreq)
+      .sort((a,b) => b[1]-a[1])
+      .slice(0, 15)
+      .map(([n,c]) => ({ num: +n, cnt: c }));
+
+    // 被幾個今日號碼同時牽引到（關聯強度）
+    const strengthMap = {};
+    numAnalysis.forEach(({ targetNum, freqList }) => {
+      freqList.forEach(({ num }) => {
+        if (!strengthMap[num]) strengthMap[num] = [];
+        strengthMap[num].push(targetNum);
+      });
+    });
+
+    // 明天星期幾
+    const nextWd = (todayWd + 1) % 7;
+    const nextWdFreq = weekdayFreq[nextWd];
+
+    return { today, numAnalysis, predictedList, strengthMap, nextWd, nextWdFreq };
+  }, []);
+
+  // ── 4. 氣場分析（近10期）+ Tesla 3-6-9 ──────────────────
+  const auraAnalysis = useMemo(() => {
+    const recent10 = RAW_DATA.slice(0, 10);
+    const allNums = recent10.flatMap(d => d.nums);
+
+    // 重新取得 tractionAnalysis.predictedList（避免循環依賴）
+    const _today = RAW_DATA[0];
+    const _todayWd = _today.weekday;
+    const _nextDayMap = {};
+    RAW_DATA.forEach(d => { const nx = RAW_DATA.find(x => x.period === d.period+1); if(nx) _nextDayMap[d.period]=nx; });
+    const _combinedFreq = {};
+    _today.nums.forEach(targetNum => {
+      RAW_DATA.filter(d => d.period !== _today.period && d.weekday === _todayWd && d.nums.includes(targetNum))
+        .forEach(d => { const nx = _nextDayMap[d.period]; if(nx) nx.nums.forEach(n => { _combinedFreq[n] = (_combinedFreq[n]||0)+1; }); });
+    });
+    const tractionPredicted = Object.entries(_combinedFreq).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([n,c])=>({num:+n,cnt:c}));
+
+    // ── Tesla 3-6-9 工具函數 ──────────────────────────────
+    const digitRoot = n => { let r = n; while (r > 9) r = String(r).split('').reduce((a,b)=>a+(+b),0); return r; };
+    const is369 = n => [3,6,9].includes(digitRoot(n));
+    const get369Type = n => {
+      const r = digitRoot(n);
+      if (r === 3) return "3";
+      if (r === 6) return "6";
+      if (r === 9) return "9";
+      return null;
+    };
+
+    // 近10期 369 統計
+    const nums369 = allNums.filter(n => is369(n));
+    const nums369Pct = Math.round((nums369.length / allNums.length) * 100);
+    const type3Cnt = allNums.filter(n => digitRoot(n) === 3).length;
+    const type6Cnt = allNums.filter(n => digitRoot(n) === 6).length;
+    const type9Cnt = allNums.filter(n => digitRoot(n) === 9).length;
+    const typeOtherCnt = allNums.length - type3Cnt - type6Cnt - type9Cnt;
+    // 369 氣場強度
+    const max369 = Math.max(type3Cnt, type6Cnt, type9Cnt);
+    const hot369Type = type3Cnt >= max369 ? "3" : type6Cnt >= max369 ? "6" : "9";
+
+    // 每期369分布
+    const perDraw369 = recent10.map(d => ({
+      ...d,
+      nums369: d.nums.filter(n => is369(n)),
+      numsOther: d.nums.filter(n => !is369(n)),
+    }));
+
+    // 所有1-39號碼的369分類
+    const allNumsWith369 = Array.from({length:39},(_,i)=>i+1).map(n => ({
+      num: n, root: digitRoot(n), is369: is369(n), type: get369Type(n),
+    }));
+
+    // 單雙
+    const oddCount = allNums.filter(n => n % 2 !== 0).length;
+    const evenCount = allNums.filter(n => n % 2 === 0).length;
+    const oddPct = Math.round((oddCount / allNums.length) * 100);
+    const evenPct = 100 - oddPct;
+    const perDrawOddEven = recent10.map(d => ({
+      period: d.period, date: d.date, weekday: d.weekday, nums: d.nums,
+      odd: d.nums.filter(n => n % 2 !== 0).length,
+      even: d.nums.filter(n => n % 2 === 0).length,
+    }));
+
+    // 區間
+    const zones = [
+      { label: "01–10", min: 1,  max: 10,  color: "#0891b2" },
+      { label: "11–20", min: 11, max: 20,  color: "#7c3aed" },
+      { label: "21–30", min: 21, max: 30,  color: "#065f46" },
+      { label: "31–39", min: 31, max: 39,  color: "#92400e" },
+    ];
+    const zoneCounts = zones.map(z => ({
+      ...z,
+      cnt: allNums.filter(n => n >= z.min && n <= z.max).length,
+      pct: Math.round((allNums.filter(n => n >= z.min && n <= z.max).length / allNums.length) * 100),
+    }));
+    const maxZone = Math.max(...zoneCounts.map(z => z.cnt));
+    const oddBias = oddCount > evenCount ? "odd" : oddCount < evenCount ? "even" : "neutral";
+    const hotZones = zoneCounts.filter(z => z.cnt >= maxZone - 1);
+
+    // 10期遺漏
+    const recent10nums = new Set(RAW_DATA.slice(0,10).flatMap(d => d.nums));
+    const missing10 = [];
+    const lastSeen = {};
+    RAW_DATA.forEach((d, idx) => d.nums.forEach(n => { if (!(n in lastSeen)) lastSeen[n] = idx; }));
+    for (let i = 1; i <= 39; i++) {
+      if (!recent10nums.has(i)) missing10.push({ num: i, gap: lastSeen[i] ?? RAW_DATA.length });
+    }
+    missing10.sort((a, b) => b.gap - a.gap);
+    const missing10Set = new Set(missing10.map(x => x.num));
+    const maxGap = missing10[0]?.gap || 1;
+
+    // ── 綜合評分加權（含 Tesla 369）────────────────────────
+    const maxTractionScore = tractionPredicted[0]?.cnt || 1;
+
+    const auraWeighted = tractionPredicted.map(({ num, cnt }) => {
+      let bonus = 0;
+      const bonusBreakdown = [];
+
+      // ① 單雙氣場（上限 15%）
+      const isOdd = num % 2 !== 0;
+      if (oddBias === "odd" && isOdd) { const b = Math.round(cnt * 0.15); bonus += b; bonusBreakdown.push({label:"單雙",val:b}); }
+      if (oddBias === "even" && !isOdd) { const b = Math.round(cnt * 0.15); bonus += b; bonusBreakdown.push({label:"單雙",val:b}); }
+
+      // ② 區間氣場（上限 20%）
+      const zone = zoneCounts.find(z => num >= z.min && num <= z.max);
+      if (zone && zone.cnt >= maxZone) { const b = Math.round(cnt * 0.2); bonus += b; bonusBreakdown.push({label:"熱區",val:b}); }
+      else if (zone && zone.cnt >= maxZone - 1) { const b = Math.round(cnt * 0.1); bonus += b; bonusBreakdown.push({label:"次熱",val:b}); }
+
+      // ③ 10期遺漏（比例縮放，上限 20%）
+      if (missing10Set.has(num)) {
+        const gap = missing10.find(x => x.num === num)?.gap || 1;
+        const b = Math.round(maxTractionScore * (gap / maxGap) * 0.2);
+        bonus += b; bonusBreakdown.push({label:"遺漏",val:b});
+      }
+
+      // ④ Tesla 369 加成
+      // 屬於369家族：基礎 +18%
+      // 各369類型再依比例加成：該類型占近10期所有號碼的比例 × 0.3 作為額外加成率
+      // 例：根3出現12個/50個 = 24%，加成率 = 24% × 0.3 = +7.2%
+      const root = digitRoot(num);
+      const total369 = type3Cnt + type6Cnt + type9Cnt;
+      const rootCountMap = { 3: type3Cnt, 6: type6Cnt, 9: type9Cnt };
+      if ([3,6,9].includes(root)) {
+        const b369 = Math.round(cnt * 0.18);
+        bonus += b369;
+        bonusBreakdown.push({label:`369(根${root})`,val:b369});
+        // 等比加成：該根號出現比例 / 總369出現數 × 0.27（最高27%，三個平均各9%）
+        const rootPct = total369 > 0 ? rootCountMap[root] / total369 : 0;
+        const bProp = Math.round(cnt * rootPct * 0.27);
+        if (bProp > 0) {
+          bonus += bProp;
+          bonusBreakdown.push({label:`369比例(${Math.round(rootPct*100)}%)`,val:bProp});
+        }
+      }
+
+      return { num, base: cnt, bonus, total: cnt + bonus, isMissing10: missing10Set.has(num), is369: is369(num), root, bonusBreakdown };
+    });
+
+    // 遺漏號碼若不在牽引清單也加入
+    missing10.forEach(({ num, gap }) => {
+      if (!auraWeighted.find(x => x.num === num)) {
+        let bonus = 0;
+        const bonusBreakdown = [];
+        const isOdd = num % 2 !== 0;
+        if (oddBias === "odd" && isOdd) bonus += Math.round(maxTractionScore * 0.05);
+        if (oddBias === "even" && !isOdd) bonus += Math.round(maxTractionScore * 0.05);
+        const zone = zoneCounts.find(z => num >= z.min && num <= z.max);
+        if (zone && zone.cnt >= maxZone) bonus += Math.round(maxTractionScore * 0.05);
+        // 369加成（等比）
+        const root = digitRoot(num);
+        const total369 = type3Cnt + type6Cnt + type9Cnt;
+        const rootCountMap = { 3: type3Cnt, 6: type6Cnt, 9: type9Cnt };
+        if ([3,6,9].includes(root)) {
+          const rootPct = total369 > 0 ? (rootCountMap[root] / total369) : 0;
+          const b = Math.round(maxTractionScore * (0.1 + rootPct * 0.27));
+          bonus += b; bonusBreakdown.push({label:`369(根${root} ${Math.round(rootPct*100)}%)`,val:b});
+        }
+        const base = Math.round(maxTractionScore * (gap / maxGap) * 0.25);
+        auraWeighted.push({ num, base, bonus, total: base + bonus, isMissing10: true, is369: is369(num), root, bonusBreakdown });
+      }
+    });
+
+    auraWeighted.sort((a, b) => b.total - a.total);
+
+    return {
+      oddCount, evenCount, oddPct, evenPct, oddBias, perDrawOddEven,
+      zoneCounts, maxZone, hotZones, auraWeighted, missing10, missing10Set,
+      nums369, nums369Pct, type3Cnt, type6Cnt, type9Cnt, typeOtherCnt,
+      hot369Type, perDraw369, allNumsWith369, digitRoot, is369, get369Type,
+    };
+  }, []);  // auraAnalysis
+
+  // ── 全體號碼頻率 ──────────────────────────────────────
+  const allFreq = useMemo(() => {
+    const freq = {};
+    RAW_DATA.forEach(d => d.nums.forEach(n => freq[n] = (freq[n]||0)+1));
+    return Object.entries(freq).map(([n,c])=>({num:+n,cnt:c})).sort((a,b)=>b.cnt-a.cnt);
+  }, []);
+
+  const maxFreq = allFreq[0]?.cnt || 1;
+
+  return (
+    <div style={{
+      fontFamily: "'Noto Sans TC', 'Microsoft JhengHei', sans-serif",
+      background: "linear-gradient(135deg, #0a0e1a 0%, #0d1b2a 50%, #0a1628 100%)",
+      minHeight: "100vh",
+      color: "#e2e8f0",
+    }}>
+      {/* Header */}
+      <div style={{
+        background: "linear-gradient(90deg, #1a2744 0%, #0f1e35 100%)",
+        borderBottom: "2px solid #f59e0b",
+        padding: "20px 24px",
+        display: "flex", alignItems: "center", gap: 16,
+      }}>
+        <div style={{ fontSize: 32 }}>🎰</div>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "#f59e0b", letterSpacing: 2 }}>加州天天樂 智能分析系統</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+            資料範圍：第11701期 ~ 第11896期（共{RAW_DATA.length}期）｜最新：2026-06-03 星期三
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+          <div style={{ fontSize: 11, color: "#64748b" }}>最新期數</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#34d399", letterSpacing: 4 }}>
+            {RAW_DATA[0].nums.map((n,i) => (
+              <span key={i} style={{
+                display: "inline-block", width: 40, height: 40, lineHeight: "40px", textAlign: "center",
+                background: "radial-gradient(circle, #f59e0b, #d97706)",
+                borderRadius: "50%", margin: "0 3px", fontSize: 16, color: "#000", fontWeight: 900,
+              }}>{String(n).padStart(2,"0")}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", borderBottom: "1px solid #1e3a5f", padding: "0 24px", background: "#0d1b2a" }}>
+        {[
+          { key: "missing", label: "🔴 近10期遺漏號碼" },
+          { key: "weekday", label: "📅 各週幾歷史統計" },
+          { key: "traction", label: "🔗 牽引預測分析" },
+          { key: "aura", label: "✨ 氣場分析" },
+          { key: "frequency", label: "📊 全部號碼頻率" },
+          { key: "history", label: "📋 歷史開獎紀錄" },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+            padding: "14px 20px", border: "none", cursor: "pointer", fontFamily: "inherit",
+            fontSize: 13, fontWeight: 700, letterSpacing: 0.5,
+            background: activeTab === tab.key ? "transparent" : "transparent",
+            color: activeTab === tab.key ? "#f59e0b" : "#64748b",
+            borderBottom: activeTab === tab.key ? "3px solid #f59e0b" : "3px solid transparent",
+            transition: "all 0.2s",
+          }}>{tab.label}</button>
+        ))}
+      </div>
+
+      <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+
+        {/* ── TAB 1: 遺漏號碼 ── */}
+        {activeTab === "missing" && (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b", marginBottom: 6 }}>近10期未出現號碼</div>
+              <div style={{ fontSize: 13, color: "#64748b" }}>
+                統計第11887期～第11896期（最近10期），以下號碼均未開出，遺漏期數越多越值得關注
+              </div>
+            </div>
+
+            {/* 近10期開獎回顧 */}
+            <div style={{
+              background: "#0f1e35", borderRadius: 12, padding: 16, marginBottom: 20,
+              border: "1px solid #1e3a5f"
+            }}>
+              <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12, fontWeight: 700 }}>近10期開獎回顧</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {RAW_DATA.slice(0,10).map((d,i) => (
+                  <div key={d.period} style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "8px 12px", borderRadius: 8,
+                    background: i === 0 ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.02)",
+                    border: i === 0 ? "1px solid rgba(245,158,11,0.3)" : "1px solid transparent",
+                  }}>
+                    <span style={{ fontSize: 11, color: "#64748b", width: 60 }}>#{d.period}</span>
+                    <span style={{ fontSize: 11, color: "#94a3b8", width: 80 }}>{d.date}</span>
+                    <span style={{
+                      fontSize: 11, width: 52, padding: "2px 6px", borderRadius: 4, textAlign: "center",
+                      background: ["#1d4ed8","#0891b2","#065f46","#7c3aed","#92400e","#be123c","#166534"][d.weekday],
+                      color: "#fff",
+                    }}>週{WEEKDAY_NAMES[d.weekday]}</span>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {d.nums.map(n => (
+                        <span key={n} style={{
+                          width: 32, height: 32, lineHeight: "32px", textAlign: "center",
+                          borderRadius: "50%", fontSize: 13, fontWeight: 700,
+                          background: "radial-gradient(circle, #1e40af, #1e3a8a)",
+                          border: "1px solid #3b82f6", color: "#93c5fd",
+                        }}>{String(n).padStart(2,"0")}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 遺漏號碼展示 */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 12 }}>
+              {missingNumbers.map(({num, gap}) => (
+                <div key={num} style={{
+                  background: gap >= 20 ? "linear-gradient(135deg, #7f1d1d, #991b1b)" :
+                               gap >= 15 ? "linear-gradient(135deg, #78350f, #92400e)" :
+                               "linear-gradient(135deg, #1e3a5f, #1e40af)",
+                  borderRadius: 12, padding: "16px 12px", textAlign: "center",
+                  border: `1px solid ${gap >= 20 ? "#ef4444" : gap >= 15 ? "#f59e0b" : "#3b82f6"}`,
+                  position: "relative", overflow: "hidden",
+                }}>
+                  <div style={{ fontSize: 36, fontWeight: 900, color: "#fff", lineHeight: 1 }}>
+                    {String(num).padStart(2,"0")}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 6 }}>
+                    遺漏 <strong>{gap}</strong> 期
+                  </div>
+                  {gap >= 20 && <div style={{ fontSize: 10, color: "#fca5a5", marginTop: 2 }}>🔥 極度遺漏</div>}
+                  {gap >= 15 && gap < 20 && <div style={{ fontSize: 10, color: "#fcd34d", marginTop: 2 }}>⚡ 高度遺漏</div>}
+                </div>
+              ))}
+            </div>
+
+            {missingNumbers.length === 0 && (
+              <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
+                近10期所有號碼均已出現
+              </div>
+            )}
+
+            {/* 全部39個號碼最後出現時間 */}
+            <div style={{ marginTop: 24, background: "#0f1e35", borderRadius: 12, padding: 16, border: "1px solid #1e3a5f" }}>
+              <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12, fontWeight: 700 }}>所有號碼遺漏期數一覽</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {Array.from({length:39},(_,i)=>i+1).map(n => {
+                  const lastIdx = RAW_DATA.findIndex(d => d.nums.includes(n));
+                  const gap = lastIdx === -1 ? "50+" : lastIdx;
+                  const isRecent10 = lastIdx !== -1 && lastIdx < 10;
+                  return (
+                    <div key={n} style={{
+                      width: 52, height: 52, borderRadius: 8, textAlign: "center",
+                      display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+                      background: isRecent10 ? "rgba(52,211,153,0.1)" : lastIdx >= 15 ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${isRecent10 ? "#34d399" : lastIdx >= 15 ? "#ef4444" : "#1e3a5f"}`,
+                    }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: isRecent10 ? "#34d399" : lastIdx >= 15 ? "#f87171" : "#94a3b8" }}>
+                        {String(n).padStart(2,"0")}
+                      </div>
+                      <div style={{ fontSize: 9, color: "#64748b" }}>{gap === "50+" ? "50+" : gap === 0 ? "最新" : `${gap}期前`}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 2: 各週幾統計 ── */}
+        {activeTab === "weekday" && (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b", marginBottom: 6 }}>每週各天歷史開獎統計</div>
+              <div style={{ fontSize: 13, color: "#64748b" }}>依星期分類，顯示各天的歷史開獎紀錄及最常出現號碼</div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8, marginBottom: 20 }}>
+              {WEEKDAY_NAMES.map((wd, wi) => {
+                const draws = weekdayHistory[wi];
+                const colors = ["#1d4ed8","#0891b2","#065f46","#7c3aed","#92400e","#be123c","#166534"];
+                return (
+                  <div key={wi} style={{
+                    background: `${colors[wi]}22`,
+                    border: `1px solid ${colors[wi]}66`,
+                    borderRadius: 10, padding: 12, textAlign: "center",
+                  }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: colors[wi] }}>週{wd}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginTop: 4 }}>{draws.length}</div>
+                    <div style={{ fontSize: 10, color: "#64748b" }}>期次</div>
+                    <div style={{ marginTop: 8 }}>
+                      {weekdayFreq[wi].slice(0,5).map(({num,cnt}) => (
+                        <div key={num} style={{
+                          display: "inline-block", margin: 2, width: 28, height: 28, lineHeight: "28px",
+                          borderRadius: "50%", fontSize: 11, fontWeight: 700,
+                          background: colors[wi], color: "#fff", textAlign: "center",
+                        }}>{num}</div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>熱門號碼</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 各天詳細 */}
+            {[1, 2, 3, 4, 5, 6, 0].map(wi => {
+              const draws = weekdayHistory[wi];
+              const colors = ["#1d4ed8","#0891b2","#065f46","#7c3aed","#92400e","#be123c","#166534"];
+              if (draws.length === 0) return null;
+              return (
+                <div key={wi} style={{
+                  background: "#0f1e35", borderRadius: 12, padding: 16,
+                  border: `1px solid ${colors[wi]}44`, marginBottom: 16,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <div style={{
+                      background: colors[wi], color: "#fff", fontSize: 13, fontWeight: 800,
+                      padding: "4px 12px", borderRadius: 20,
+                    }}>週{WEEKDAY_NAMES[wi]}（{WEEKDAY_FULL[wi]}）</div>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>共 {draws.length} 期紀錄</span>
+                    <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                      <span style={{ fontSize: 11, color: "#94a3b8" }}>Top熱號：</span>
+                      {weekdayFreq[wi].slice(0,8).map(({num,cnt}) => (
+                        <span key={num} style={{
+                          padding: "2px 7px", borderRadius: 12, fontSize: 11, fontWeight: 700,
+                          background: `${colors[wi]}44`, color: "#fff", border: `1px solid ${colors[wi]}88`,
+                        }}>{String(num).padStart(2,"0")}({cnt})</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {draws.map(d => (
+                      <div key={d.period} style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "6px 10px", borderRadius: 6,
+                        background: "rgba(255,255,255,0.02)",
+                      }}>
+                        <span style={{ fontSize: 11, color: "#475569", width: 55 }}>#{d.period}</span>
+                        <span style={{ fontSize: 11, color: "#64748b", width: 82 }}>{d.date}</span>
+                        {d.nums.map(n => (
+                          <span key={n} style={{
+                            width: 30, height: 30, lineHeight: "30px", textAlign: "center",
+                            borderRadius: "50%", fontSize: 12, fontWeight: 700,
+                            background: weekdayFreq[wi].slice(0,5).some(x=>x.num===n) ?
+                              `radial-gradient(circle, ${colors[wi]}, ${colors[wi]}88)` :
+                              "rgba(255,255,255,0.07)",
+                            color: weekdayFreq[wi].slice(0,5).some(x=>x.num===n) ? "#fff" : "#94a3b8",
+                          }}>{String(n).padStart(2,"0")}</span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── TAB 3: 牽引分析 ── */}
+        {activeTab === "traction" && (() => {
+          const { today, numAnalysis, predictedList, strengthMap, nextWd, nextWdFreq } = tractionAnalysis;
+          const COLORS = ["#1d4ed8","#0891b2","#065f46","#7c3aed","#92400e","#be123c","#166534"];
+          const maxCnt = predictedList[0]?.cnt || 1;
+          return (
+          <div>
+            {/* 原理說明 */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b", marginBottom: 6 }}>🔗 牽引關聯預測</div>
+              <div style={{
+                background: "rgba(30,58,95,0.3)", border: "1px solid #1e3a5f",
+                borderRadius: 10, padding: 14, fontSize: 12, color: "#94a3b8", lineHeight: 1.9,
+              }}>
+                📖 <strong style={{color:"#93c5fd"}}>分析邏輯：</strong>
+                今天（{today.date} {WEEKDAY_NAMES[today.weekday]}）開出
+                {today.nums.map(n => (
+                  <span key={n} style={{
+                    display:"inline-block", margin:"0 3px", padding:"1px 6px",
+                    borderRadius:4, background: COLORS[today.weekday]+"44",
+                    border:`1px solid ${COLORS[today.weekday]}`, color:"#fff", fontWeight:700,
+                  }}>{String(n).padStart(2,"0")}</span>
+                ))}
+                → 分別找歷史上<strong style={{color:"#f59e0b"}}>同週{WEEKDAY_NAMES[today.weekday]}</strong>也開過這些號碼的期次
+                → 看那些期的<strong style={{color:"#34d399"}}>隔天（週{WEEKDAY_NAMES[nextWd]}）</strong>開了什麼
+                → 統計頻率得出明日關聯號碼
+              </div>
+            </div>
+
+            {/* 每個號碼的牽引分析 */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#a78bfa", marginBottom: 10 }}>
+                今日各號碼牽引詳情
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {numAnalysis.filter(({ matchedPeriods }) => matchedPeriods.length >= 2).map(({ targetNum, matchedPeriods, nextDayDetails, freqList }) => (
+                  <div key={targetNum} style={{
+                    background: "#0f1e35", borderRadius: 12, padding: 14,
+                    border: `1px solid ${COLORS[today.weekday]}44`,
+                  }}>
+                    {/* 號碼標題 */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                      <div style={{
+                        width: 44, height: 44, lineHeight: "44px", textAlign: "center",
+                        borderRadius: "50%", fontSize: 16, fontWeight: 900,
+                        background: `radial-gradient(circle, ${COLORS[today.weekday]}, ${COLORS[today.weekday]}88)`,
+                        color: "#fff", boxShadow: `0 0 12px ${COLORS[today.weekday]}66`,
+                      }}>{String(targetNum).padStart(2,"0")}</div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>
+                          號碼 {String(targetNum).padStart(2,"0")}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#64748b" }}>
+                          歷史週{WEEKDAY_NAMES[today.weekday]}出現 <strong style={{color:"#f59e0b"}}>{matchedPeriods.length}</strong> 次，
+                          有 <strong style={{color:"#34d399"}}>{nextDayDetails.length}</strong> 次找到隔天資料
+                        </div>
+                      </div>
+                    </div>
+
+                    {matchedPeriods.length === 0 ? (
+                      <div style={{ fontSize: 12, color: "#475569", fontStyle: "italic" }}>歷史上此週{WEEKDAY_NAMES[today.weekday]}未出現過此號碼</div>
+                    ) : (
+                      <>
+                        {/* 歷史紀錄 */}
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>歷史出現 → 隔天開獎：</div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            {nextDayDetails.map(({ src, next }) => (
+                              <div key={src.period} style={{
+                                display: "flex", alignItems: "center", gap: 8,
+                                padding: "5px 8px", borderRadius: 6, background: "rgba(255,255,255,0.03)",
+                                flexWrap: "wrap",
+                              }}>
+                                <span style={{ fontSize: 10, color: COLORS[today.weekday], width: 80 }}>
+                                  週{WEEKDAY_NAMES[src.weekday]} #{src.period}
+                                </span>
+                                <div style={{ display: "flex", gap: 3 }}>
+                                  {src.nums.map(n => (
+                                    <span key={n} style={{
+                                      width: 26, height: 26, lineHeight: "26px", textAlign: "center",
+                                      borderRadius: "50%", fontSize: 10, fontWeight: 700,
+                                      background: n === targetNum ? COLORS[today.weekday] : "rgba(255,255,255,0.06)",
+                                      color: n === targetNum ? "#fff" : "#64748b",
+                                      border: n === targetNum ? `1px solid ${COLORS[today.weekday]}` : "none",
+                                    }}>{String(n).padStart(2,"0")}</span>
+                                  ))}
+                                </div>
+                                <span style={{ color: "#f59e0b", fontSize: 12 }}>→</span>
+                                <span style={{ fontSize: 10, color: COLORS[nextWd], width: 80 }}>
+                                  週{WEEKDAY_NAMES[next.weekday]} #{next.period}
+                                </span>
+                                <div style={{ display: "flex", gap: 3 }}>
+                                  {next.nums.map(n => (
+                                    <span key={n} style={{
+                                      width: 26, height: 26, lineHeight: "26px", textAlign: "center",
+                                      borderRadius: "50%", fontSize: 10, fontWeight: 700,
+                                      background: freqList.slice(0,3).some(x=>x.num===n)
+                                        ? `radial-gradient(circle, ${COLORS[nextWd]}, ${COLORS[nextWd]}88)`
+                                        : "rgba(255,255,255,0.06)",
+                                      color: freqList.slice(0,3).some(x=>x.num===n) ? "#fff" : "#64748b",
+                                    }}>{String(n).padStart(2,"0")}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 隔天頻率 */}
+                        {freqList.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
+                              隔天高頻號碼（關聯號）：
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                              {freqList.slice(0,8).map(({ num, cnt }) => (
+                                <div key={num} style={{ textAlign: "center" }}>
+                                  <div style={{
+                                    width: 34, height: 34, lineHeight: "34px", textAlign: "center",
+                                    borderRadius: "50%", fontSize: 12, fontWeight: 700,
+                                    background: cnt >= 2
+                                      ? `radial-gradient(circle, ${COLORS[nextWd]}, ${COLORS[nextWd]}88)`
+                                      : "rgba(255,255,255,0.07)",
+                                    color: "#fff",
+                                    border: cnt >= 2 ? `2px solid ${COLORS[nextWd]}` : "1px solid #1e3a5f",
+                                  }}>{String(num).padStart(2,"0")}</div>
+                                  <div style={{ fontSize: 9, color: "#64748b", marginTop: 1 }}>{cnt}次</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 🎯 綜合預測 */}
+            <div style={{
+              background: "linear-gradient(135deg, #0f2d1a, #1a2a1a)",
+              border: "2px solid #34d399", borderRadius: 16, padding: 20, marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#34d399", marginBottom: 4 }}>
+                🎯 明日預測（{WEEKDAY_FULL[nextWd]}）
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>
+                5個今日號碼各自牽引的隔天關聯頻率加總，被多個號碼同時牽引到的權重更高
+              </div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                {predictedList.map(({ num, cnt }, idx) => {
+                  const strength = strengthMap[num]?.length || 0;
+                  const isDouble = strength >= 2;
+                  const isHotNextWd = nextWdFreq.slice(0,5).some(x => x.num === num);
+                  return (
+                    <div key={num} style={{ textAlign: "center" }}>
+                      <div style={{
+                        width: idx < 5 ? 50 : 40, height: idx < 5 ? 50 : 40,
+                        lineHeight: idx < 5 ? "50px" : "40px",
+                        textAlign: "center", borderRadius: "50%",
+                        fontSize: idx < 5 ? 16 : 13, fontWeight: 900,
+                        background: isDouble
+                          ? "radial-gradient(circle, #f59e0b, #d97706)"
+                          : `radial-gradient(circle, ${COLORS[nextWd]}, ${COLORS[nextWd]}88)`,
+                        border: `2px solid ${isDouble ? "#f59e0b" : COLORS[nextWd]}`,
+                        color: "#fff",
+                        boxShadow: isDouble ? "0 0 14px rgba(245,158,11,0.5)" : "none",
+                      }}>{String(num).padStart(2,"0")}</div>
+                      <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 2 }}>{cnt}分</div>
+                      {isDouble && <div style={{ fontSize: 8, color: "#f59e0b" }}>🔗×{strength}</div>}
+                      {isHotNextWd && <div style={{ fontSize: 8, color: "#34d399" }}>📅熱</div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.7 }}>
+                🔗×2 = 被今日2個號碼同時牽引（關聯更強）｜📅熱 = 也是週{WEEKDAY_NAMES[nextWd]}歷史熱號<br/>
+                ⚠️ 僅供娛樂參考，彩券具完全隨機性，請理性娛樂。
+              </div>
+            </div>
+          </div>
+          );
+        })()}
+
+        {/* ── TAB 4: 氣場分析 ── */}
+        {activeTab === "aura" && (() => {
+          const { oddCount, evenCount, oddPct, evenPct, oddBias, perDrawOddEven,
+                  zoneCounts, maxZone, hotZones, auraWeighted, missing10, missing10Set,
+                  nums369, nums369Pct, type3Cnt, type6Cnt, type9Cnt, typeOtherCnt,
+                  hot369Type, perDraw369, allNumsWith369, digitRoot, is369 } = auraAnalysis;
+          const { nextWd } = tractionAnalysis;
+          const COLORS = ["#1d4ed8","#0891b2","#065f46","#7c3aed","#92400e","#be123c","#166534"];
+          const ZONE_COLORS = ["#0891b2","#7c3aed","#065f46","#92400e"];
+          const C369 = { "3":"#a855f7", "6":"#f59e0b", "9":"#34d399", null:"#475569" };
+
+          return (
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b", marginBottom: 6 }}>✨ 近10期氣場 + Tesla 3-6-9 分析</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>
+              單雙氣場 × 區間氣場 × 10期遺漏 × Tesla 3-6-9 四維評分加權
+            </div>
+
+            {/* ── Tesla 369 氣場 ── */}
+            <div style={{
+              background: "linear-gradient(135deg, #1a0a2e, #0f1e35)",
+              border: "2px solid #a855f766", borderRadius: 12, padding: 18, marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#a855f7", marginBottom: 4 }}>
+                ⚡ Tesla 3-6-9 宇宙能量分析
+              </div>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 14 }}>
+                數字根（Digit Root）= 持續加總至個位數。屬於 3、6、9 的號碼基礎加成 +18%，再依各類型在近10期出現的<strong style={{color:"#a855f7"}}>實際比例</strong>額外加成（最高再 +27%）
+              </div>
+
+              {/* 369 大比例條 */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+                  {[
+                    { t:"3", cnt:type3Cnt, color:"#a855f7" },
+                    { t:"6", cnt:type6Cnt, color:"#f59e0b" },
+                    { t:"9", cnt:type9Cnt, color:"#34d399" },
+                    { t:"其他", cnt:typeOtherCnt, color:"#475569" },
+                  ].map(({t,cnt,color}) => {
+                    const total369 = type3Cnt + type6Cnt + type9Cnt;
+                    const pct = total369 > 0 && ["3","6","9"].includes(t) ? Math.round((cnt/total369)*100) : null;
+                    const propBonus = pct !== null ? Math.round(pct * 0.27) : null;
+                    return (
+                    <div key={t} style={{
+                      flex:1, minWidth:60, background:`${color}22`, border:`1px solid ${color}66`,
+                      borderRadius:8, padding:"8px 10px", textAlign:"center",
+                    }}>
+                      <div style={{ fontSize:18, fontWeight:900, color }}>{t === "其他" ? "其他" : `根${t}`}</div>
+                      <div style={{ fontSize:20, fontWeight:900, color:"#fff" }}>{cnt}</div>
+                      <div style={{ fontSize:10, color:"#64748b" }}>個 {Math.round(cnt/50*100)}%</div>
+                      {pct !== null && <div style={{ fontSize:9, color, marginTop:2, fontWeight:700 }}>+18% +{propBonus}%</div>}
+                      {pct !== null && <div style={{ fontSize:9, color:"#64748b" }}>占369的{pct}%</div>}
+                    </div>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize:12, color:"#94a3b8", textAlign:"center" }}>
+                  近10期共 <strong style={{color:"#a855f7"}}>{nums369.length}</strong> 個 369 家族號碼（占 {nums369Pct}%）
+                </div>
+              </div>
+
+              {/* 每期369分布 */}
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>近10期各期 369 分布：</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {perDraw369.map((d, i) => (
+                  <div key={d.period} style={{
+                    display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                    padding: "5px 8px", borderRadius: 6,
+                    background: i === 0 ? "rgba(168,85,247,0.08)" : "rgba(255,255,255,0.02)",
+                  }}>
+                    <span style={{ fontSize:10, color:"#475569", width:55 }}>#{d.period}</span>
+                    <span style={{ fontSize:10, color:"#64748b", width:70 }}>{d.date}</span>
+                    {d.nums.map(n => {
+                      const root = digitRoot(n);
+                      const c = C369[is369(n) ? String(root) : null];
+                      return (
+                        <span key={n} style={{
+                          width:28, height:28, lineHeight:"28px", textAlign:"center",
+                          borderRadius:"50%", fontSize:10, fontWeight:700,
+                          background: is369(n) ? `radial-gradient(circle,${c},${c}88)` : "rgba(255,255,255,0.06)",
+                          color: is369(n) ? "#fff" : "#64748b",
+                          border: is369(n) ? `1px solid ${c}` : "1px solid #1e3a5f",
+                        }}>{String(n).padStart(2,"0")}</span>
+                      );
+                    })}
+                    <span style={{ marginLeft:"auto", fontSize:10 }}>
+                      <span style={{color:"#a855f7"}}>{d.nums369.length}個369</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* 1-39 369分類表 */}
+              <div style={{ marginTop: 14, fontSize: 11, color: "#64748b", marginBottom: 8 }}>1-39 號碼 Tesla 數字根分類：</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {allNumsWith369.map(({ num, root, is369: i3, type }) => (
+                  <div key={num} style={{ textAlign: "center" }}>
+                    <div style={{
+                      width: 30, height: 30, lineHeight: "30px", textAlign: "center",
+                      borderRadius: "50%", fontSize: 10, fontWeight: 700,
+                      background: i3 ? `radial-gradient(circle,${C369[type]},${C369[type]}88)` : "rgba(255,255,255,0.04)",
+                      color: i3 ? "#fff" : "#475569",
+                      border: `1px solid ${i3 ? C369[type] : "#1e3a5f"}`,
+                    }}>{String(num).padStart(2,"0")}</div>
+                    <div style={{ fontSize: 8, color: i3 ? C369[type] : "#475569", marginTop: 1 }}>根{root}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 8, display: "flex", gap: 12, fontSize: 10, flexWrap: "wrap" }}>
+                <span style={{color:"#a855f7"}}>■ 根3（3,12,21,30,39）</span>
+                <span style={{color:"#f59e0b"}}>■ 根6（6,15,24,33）</span>
+                <span style={{color:"#34d399"}}>■ 根9（9,18,27,36）</span>
+                <span style={{color:"#475569"}}>■ 其他</span>
+              </div>
+            </div>
+
+            {/* ── ③ 10期遺漏號碼 ── */}
+            <div style={{ background: "#0f1e35", border: "2px solid #ef444466", borderRadius: 12, padding: 18, marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#f87171", marginBottom: 4 }}>
+                ③ 近10期遺漏號碼加成
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+                以下號碼在近10期完全未開出，納入預測時額外 <span style={{color:"#f87171",fontWeight:700}}>+50% 分數加成</span>，遺漏越久優先度越高
+              </div>
+              {missing10.length === 0 ? (
+                <div style={{ color: "#64748b", fontSize: 12 }}>近10期所有號碼均已出現，無遺漏加成</div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                    {missing10.map(({ num, gap }) => {
+                      const isOdd = num % 2 !== 0;
+                      const zoneIdx = num <= 10 ? 0 : num <= 20 ? 1 : num <= 30 ? 2 : 3;
+                      const heat = gap >= 20 ? "🔥" : gap >= 15 ? "⚡" : "📌";
+                      const bg = gap >= 20 ? "linear-gradient(135deg,#7f1d1d,#991b1b)" :
+                                 gap >= 15 ? "linear-gradient(135deg,#78350f,#92400e)" :
+                                 "linear-gradient(135deg,#1e3a5f,#1e40af)";
+                      const bc = gap >= 20 ? "#ef4444" : gap >= 15 ? "#f59e0b" : "#3b82f6";
+                      return (
+                        <div key={num} style={{ textAlign: "center" }}>
+                          <div style={{
+                            width: 46, height: 46, lineHeight: "46px", textAlign: "center",
+                            borderRadius: "50%", fontSize: 15, fontWeight: 900,
+                            background: bg, border: `2px solid ${bc}`, color: "#fff",
+                            boxShadow: gap >= 20 ? `0 0 12px ${bc}66` : "none",
+                          }}>{String(num).padStart(2,"0")}</div>
+                          <div style={{ fontSize: 9, color: bc, marginTop: 2 }}>{heat}{gap}期</div>
+                          <div style={{ fontSize: 8, color: isOdd ? "#f87171" : "#60a5fa" }}>{isOdd?"單":"雙"}</div>
+                          <div style={{ fontSize: 8, color: ZONE_COLORS[zoneIdx] }}>{["01-10","11-20","21-30","31-39"][zoneIdx]}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{
+                    background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "8px 12px",
+                    fontSize: 11, color: "#94a3b8", lineHeight: 1.7,
+                  }}>
+                    📊 加成規則：牽引基礎分 × 1.5｜同時符合單雙/區間氣場者可疊加，最高可達基礎分 × 2.2
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* ── 單雙氣場 ── */}
+            <div style={{ background: "#0f1e35", border: "1px solid #1e3a5f", borderRadius: 12, padding: 18, marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#a78bfa", marginBottom: 14 }}>① 單雙氣場</div>
+
+              {/* 大比例條 */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#f87171" }}>單數 {oddCount}個 ({oddPct}%)</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#60a5fa" }}>雙數 {evenCount}個 ({evenPct}%)</span>
+                </div>
+                <div style={{ height: 28, borderRadius: 14, overflow: "hidden", display: "flex", border: "1px solid #1e3a5f" }}>
+                  <div style={{
+                    width: `${oddPct}%`, background: "linear-gradient(90deg, #ef4444, #dc2626)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 12, fontWeight: 700, color: "#fff",
+                  }}>{oddPct > 15 ? `單 ${oddPct}%` : ""}</div>
+                  <div style={{
+                    flex: 1, background: "linear-gradient(90deg, #2563eb, #1d4ed8)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 12, fontWeight: 700, color: "#fff",
+                  }}>{evenPct > 15 ? `雙 ${evenPct}%` : ""}</div>
+                </div>
+                <div style={{ marginTop: 8, textAlign: "center" }}>
+                  {oddBias === "odd" && <span style={{ fontSize: 13, color: "#f87171", fontWeight: 700 }}>🔥 近10期單數氣場偏強，預測權重 +30%</span>}
+                  {oddBias === "even" && <span style={{ fontSize: 13, color: "#60a5fa", fontWeight: 700 }}>🔥 近10期雙數氣場偏強，預測權重 +30%</span>}
+                  {oddBias === "neutral" && <span style={{ fontSize: 13, color: "#94a3b8" }}>⚖️ 單雙均衡，無偏向</span>}
+                </div>
+              </div>
+
+              {/* 每期單雙 */}
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>近10期各期單雙分布：</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {perDrawOddEven.map((d, i) => (
+                  <div key={d.period} style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "6px 10px", borderRadius: 6,
+                    background: i === 0 ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.02)",
+                    border: i === 0 ? "1px solid rgba(245,158,11,0.2)" : "1px solid transparent",
+                  }}>
+                    <span style={{ fontSize: 10, color: "#475569", width: 55 }}>#{d.period}</span>
+                    <span style={{ fontSize: 10, color: "#64748b", width: 70 }}>{d.date}</span>
+                    {d.nums.map(n => (
+                      <span key={n} style={{
+                        width: 28, height: 28, lineHeight: "28px", textAlign: "center",
+                        borderRadius: "50%", fontSize: 11, fontWeight: 700,
+                        background: n % 2 !== 0
+                          ? "radial-gradient(circle,#dc2626,#b91c1c)"
+                          : "radial-gradient(circle,#1d4ed8,#1e40af)",
+                        color: "#fff",
+                      }}>{String(n).padStart(2,"0")}</span>
+                    ))}
+                    <span style={{ marginLeft: "auto", fontSize: 11, color: "#94a3b8" }}>
+                      <span style={{ color: "#f87171" }}>單{d.odd}</span>
+                      <span style={{ color: "#64748b" }}> / </span>
+                      <span style={{ color: "#60a5fa" }}>雙{d.even}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── 區間氣場 ── */}
+            <div style={{ background: "#0f1e35", border: "1px solid #1e3a5f", borderRadius: 12, padding: 18, marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#34d399", marginBottom: 14 }}>② 區間氣場</div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 16 }}>
+                {zoneCounts.map((z, i) => {
+                  const isHot = z.cnt >= maxZone;
+                  const isWarm = z.cnt >= maxZone - 1 && !isHot;
+                  return (
+                    <div key={z.label} style={{
+                      borderRadius: 12, padding: "14px 10px", textAlign: "center",
+                      background: isHot ? `${ZONE_COLORS[i]}33` : isWarm ? `${ZONE_COLORS[i]}18` : "rgba(255,255,255,0.03)",
+                      border: `2px solid ${isHot ? ZONE_COLORS[i] : isWarm ? ZONE_COLORS[i]+"66" : "#1e3a5f"}`,
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: ZONE_COLORS[i] }}>{z.label}</div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: "#fff", margin: "6px 0" }}>{z.cnt}</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8" }}>個 ({z.pct}%)</div>
+                      {isHot && <div style={{ fontSize: 10, color: ZONE_COLORS[i], marginTop: 4, fontWeight: 700 }}>🔥 最熱區間 +40%</div>}
+                      {isWarm && <div style={{ fontSize: 10, color: ZONE_COLORS[i], marginTop: 4 }}>⚡ 次熱區間 +20%</div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 區間長條 */}
+              <div style={{ display: "flex", height: 24, borderRadius: 12, overflow: "hidden", border: "1px solid #1e3a5f" }}>
+                {zoneCounts.map((z, i) => (
+                  <div key={z.label} style={{
+                    width: `${z.pct}%`, background: ZONE_COLORS[i],
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 700, color: "#fff",
+                    minWidth: z.pct > 10 ? "auto" : 0,
+                  }}>{z.pct > 12 ? z.label : ""}</div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── 氣場加權後最終預測 ── */}
+            <div style={{
+              background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+              border: "2px solid #f59e0b", borderRadius: 16, padding: 20,
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#f59e0b", marginBottom: 4 }}>
+                🌟 氣場加權最終預測（{WEEKDAY_FULL[nextWd]}）
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>
+                牽引分數 × 單雙氣場加成 × 區間氣場加成 → 綜合排名
+              </div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                {auraWeighted.slice(0, 15).map(({ num, base, bonus, total, is369: numIs369, root: numRoot }, idx) => {
+                  const isOdd = num % 2 !== 0;
+                  const zoneIdx = num <= 10 ? 0 : num <= 20 ? 1 : num <= 30 ? 2 : 3;
+                  const zoneColor = ZONE_COLORS[zoneIdx];
+                  const hasBonus = bonus > 0;
+                  const rootColor = numRoot === 3 ? "#a855f7" : numRoot === 6 ? "#f59e0b" : numRoot === 9 ? "#34d399" : "#475569";
+                  return (
+                    <div key={num} style={{ textAlign: "center" }}>
+                      <div style={{
+                        width: idx < 5 ? 54 : idx < 10 ? 44 : 36,
+                        height: idx < 5 ? 54 : idx < 10 ? 44 : 36,
+                        lineHeight: idx < 5 ? "54px" : idx < 10 ? "44px" : "36px",
+                        textAlign: "center", borderRadius: "50%",
+                        fontSize: idx < 5 ? 17 : idx < 10 ? 14 : 12,
+                        fontWeight: 900,
+                        background: hasBonus
+                          ? `radial-gradient(circle, #f59e0b, #d97706)`
+                          : `radial-gradient(circle, ${zoneColor}, ${zoneColor}88)`,
+                        border: `2px solid ${hasBonus ? "#f59e0b" : zoneColor}`,
+                        color: "#fff",
+                        boxShadow: idx < 3 ? "0 0 16px rgba(245,158,11,0.5)" : "none",
+                      }}>{String(num).padStart(2,"0")}</div>
+                      <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 2 }}>{total}分</div>
+                      {bonus > 0 && <div style={{ fontSize: 8, color: "#f59e0b" }}>+{bonus}氣</div>}
+                      <div style={{ fontSize: 8, color: isOdd ? "#f87171" : "#60a5fa" }}>{isOdd ? "單" : "雙"}</div>
+                      {missing10Set.has(num) && <div style={{ fontSize: 8, color: "#ef4444", fontWeight: 700 }}>🔴遺漏</div>}
+                      {numIs369 && <div style={{ fontSize: 8, color: rootColor, fontWeight: 700 }}>⚡根{numRoot}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11, color: "#64748b" }}>
+                <span>🔴 單數</span><span>🔵 雙數</span>
+                {zoneCounts.map((z,i) => <span key={i} style={{ color: ZONE_COLORS[i] }}>■ {z.label}</span>)}
+                <span style={{color:"#a855f7"}}>⚡根3</span>
+                <span style={{color:"#f59e0b"}}>⚡根6</span>
+                <span style={{color:"#34d399"}}>⚡根9</span>
+                <span style={{ marginLeft: "auto", color: "#f59e0b" }}>⚠️ 僅供娛樂參考</span>
+              </div>
+            </div>
+          </div>
+          );
+        })()}
+
+        {/* ── TAB 5: 全部頻率 ── */}
+        {activeTab === "frequency" && (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b", marginBottom: 6 }}>全部號碼出現頻率統計（50期）</div>
+              <div style={{ fontSize: 13, color: "#64748b" }}>1-39號碼在50期中各自出現次數</div>
+            </div>
+
+            {/* 長條圖 */}
+            <div style={{ background: "#0f1e35", borderRadius: 12, padding: 20, border: "1px solid #1e3a5f", marginBottom: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {Array.from({length:39},(_,i)=>i+1).map(n => {
+                  const cnt = allFreq.find(x=>x.num===n)?.cnt || 0;
+                  const pct = (cnt / maxFreq) * 100;
+                  const isTop5 = allFreq.slice(0,5).some(x=>x.num===n);
+                  return (
+                    <div key={n} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        width: 32, fontSize: 12, fontWeight: 700, textAlign: "right",
+                        color: isTop5 ? "#f59e0b" : "#94a3b8",
+                      }}>{String(n).padStart(2,"0")}</span>
+                      <div style={{ flex: 1, background: "#1e3a5f", borderRadius: 3, height: 18 }}>
+                        <div style={{
+                          height: "100%", borderRadius: 3,
+                          background: isTop5 ?
+                            "linear-gradient(90deg, #f59e0b, #d97706)" :
+                            "linear-gradient(90deg, #3b82f6, #1d4ed8)",
+                          width: `${pct}%`, minWidth: cnt > 0 ? 4 : 0,
+                          transition: "width 0.3s",
+                        }} />
+                      </div>
+                      <span style={{
+                        width: 28, fontSize: 12, fontWeight: 700, textAlign: "left",
+                        color: isTop5 ? "#f59e0b" : "#94a3b8",
+                      }}>{cnt}</span>
+                      {isTop5 && <span style={{ fontSize: 10, color: "#f59e0b" }}>🔥</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top 10 熱號 */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <div style={{ background: "#0f1e35", borderRadius: 12, padding: 16, border: "1px solid #f59e0b44" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#f59e0b", marginBottom: 12 }}>🔥 Top 10 熱號</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {allFreq.slice(0,10).map(({num,cnt},idx) => (
+                    <div key={num} style={{ textAlign: "center" }}>
+                      <div style={{
+                        width: 44, height: 44, lineHeight: "44px", textAlign: "center",
+                        borderRadius: "50%", fontSize: 14, fontWeight: 900,
+                        background: `radial-gradient(circle, ${["#d97706","#b45309","#92400e"][Math.min(idx,2)]}, #78350f)`,
+                        color: "#fff",
+                        boxShadow: idx === 0 ? "0 0 12px rgba(245,158,11,0.6)" : "none",
+                      }}>{String(num).padStart(2,"0")}</div>
+                      <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 2 }}>{cnt}次</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ background: "#0f1e35", borderRadius: 12, padding: 16, border: "1px solid #3b82f644" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#60a5fa", marginBottom: 12 }}>❄️ Top 10 冷號（出現最少）</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {allFreq.slice(-10).reverse().map(({num,cnt},idx) => (
+                    <div key={num} style={{ textAlign: "center" }}>
+                      <div style={{
+                        width: 44, height: 44, lineHeight: "44px", textAlign: "center",
+                        borderRadius: "50%", fontSize: 14, fontWeight: 900,
+                        background: `radial-gradient(circle, #1e3a8a, #1e40af)`,
+                        color: "#bfdbfe",
+                        border: "1px solid #3b82f6",
+                      }}>{String(num).padStart(2,"0")}</div>
+                      <div style={{ fontSize: 10, color: "#60a5fa", marginTop: 2 }}>{cnt}次</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 6: 歷史開獎紀錄 ── */}
+        {activeTab === "history" && (() => {
+          const COLORS = ["#1d4ed8","#0891b2","#065f46","#7c3aed","#92400e","#be123c","#166534"];
+          const { digitRoot, is369 } = auraAnalysis;
+          const C369 = { 3:"#a855f7", 6:"#f59e0b", 9:"#34d399" };
+          const filtered = historySearch
+            ? RAW_DATA.filter(d => d.period.toString().includes(historySearch) || d.date.includes(historySearch) || d.nums.some(n => String(n).padStart(2,"0").includes(historySearch)))
+            : RAW_DATA;
+
+          return (
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b", marginBottom: 6 }}>📋 歷史開獎完整紀錄</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>
+              共 <strong style={{color:"#34d399"}}>{RAW_DATA.length}</strong> 期資料｜
+              第 <strong style={{color:"#94a3b8"}}>{RAW_DATA[RAW_DATA.length-1].period}</strong> 期 ~ 第 <strong style={{color:"#94a3b8"}}>{RAW_DATA[0].period}</strong> 期｜
+              全部經過星期驗證 ✅
+            </div>
+
+            {/* 搜尋 */}
+            <div style={{ marginBottom: 14 }}>
+              <input
+                type="text"
+                placeholder="搜尋期號、日期或號碼..."
+                value={historySearch}
+                onChange={e => setHistorySearch(e.target.value)}
+                style={{
+                  width: "100%", padding: "10px 14px", borderRadius: 10,
+                  background: "#0f1e35", border: "1px solid #1e3a5f",
+                  color: "#e2e8f0", fontSize: 14, fontFamily: "inherit",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {/* 統計摘要 */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 14 }}>
+              {[
+                { label: "總期數", val: RAW_DATA.length, color: "#34d399" },
+                { label: "最新期", val: RAW_DATA[0].period, color: "#f59e0b" },
+                { label: "最早期", val: RAW_DATA[RAW_DATA.length-1].period, color: "#94a3b8" },
+                { label: "涵蓋天數", val: Math.round((new Date(RAW_DATA[0].date) - new Date(RAW_DATA[RAW_DATA.length-1].date)) / 86400000), color: "#60a5fa" },
+              ].map(({label,val,color}) => (
+                <div key={label} style={{ background:"#0f1e35", border:"1px solid #1e3a5f", borderRadius:10, padding:"10px 8px", textAlign:"center" }}>
+                  <div style={{ fontSize:18, fontWeight:900, color }}>{val}</div>
+                  <div style={{ fontSize:10, color:"#64748b", marginTop:2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* 紀錄列表 */}
+            <div style={{ background:"#0f1e35", border:"1px solid #1e3a5f", borderRadius:12, padding:12 }}>
+              <div style={{ fontSize:11, color:"#64748b", marginBottom:10 }}>
+                顯示 {filtered.length} 筆｜
+                <span style={{color:"#a855f7"}}>■根3</span>
+                <span style={{color:"#f59e0b",marginLeft:6}}>■根6</span>
+                <span style={{color:"#34d399",marginLeft:6}}>■根9</span>
+                <span style={{color:"#475569",marginLeft:6}}>■其他</span>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {filtered.map((d, i) => (
+                  <div key={d.period} style={{
+                    display:"flex", alignItems:"center", gap:6, flexWrap:"wrap",
+                    padding:"8px 10px", borderRadius:8,
+                    background: i===0 && !historySearch ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${i===0 && !historySearch ? "rgba(245,158,11,0.2)" : "transparent"}`,
+                  }}>
+                    <div style={{ display:"flex", flexDirection:"column", minWidth:52 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color: i===0&&!historySearch?"#f59e0b":"#64748b" }}>#{d.period}</span>
+                      <span style={{ fontSize:10, color:"#475569" }}>{d.date}</span>
+                    </div>
+                    <span style={{
+                      fontSize:10, padding:"2px 7px", borderRadius:12, fontWeight:700, color:"#fff",
+                      background: COLORS[d.weekday], minWidth:36, textAlign:"center",
+                    }}>週{WEEKDAY_NAMES[d.weekday]}</span>
+                    <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                      {d.nums.map(n => {
+                        const r = digitRoot(n);
+                        const i3 = is369(n);
+                        const c = i3 ? C369[r] : "#1e3a5f";
+                        return (
+                          <span key={n} style={{
+                            width:32, height:32, lineHeight:"32px", textAlign:"center",
+                            borderRadius:"50%", fontSize:12, fontWeight:700,
+                            background: i3 ? `radial-gradient(circle,${c},${c}88)` : "rgba(255,255,255,0.07)",
+                            color: i3 ? "#fff" : "#94a3b8",
+                            border: `1px solid ${i3 ? c : "#1e3a5f"}`,
+                          }}>{String(n).padStart(2,"0")}</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          );
+        })()}
+
+      </div>
+    </div>
+  );
+}
+
+async function init() {
+  try {
+    const res = await fetch('data/lottery.json?t=' + Date.now());
+    if (res.ok) {
+      const json = await res.json();
+      RAW_DATA = json.sort((a,b) => b.period - a.period);
+    }
+  } catch(e) {
+    console.log('使用內建資料');
+  }
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('root').style.display = 'block';
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+}
+init();
+</script>
+</body>
+</html>
