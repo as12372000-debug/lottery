@@ -1,10 +1,10 @@
-
 const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
 
 const DATA_FILE = path.join(__dirname, '../data/lottery.json');
+const INDEX_FILE = path.join(__dirname, '../index.html');
 const URL = 'https://sc888.net/index.php?s=/LotteryFan/index';
 
 async function scrape() {
@@ -56,7 +56,16 @@ async function scrape() {
 
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
   fs.writeFileSync(DATA_FILE, JSON.stringify(final, null, 2), 'utf8');
-  console.log(`✅ 完成，共 ${final.length} 期`);
+  console.log(`✅ lottery.json 更新完成，共 ${final.length} 期`);
+
+  // 更新 index.html 裡的 RAW_DATA
+  if (fs.existsSync(INDEX_FILE)) {
+    let html = fs.readFileSync(INDEX_FILE, 'utf8');
+    const newDataStr = 'let RAW_DATA = ' + JSON.stringify(final) + ';';
+    html = html.replace(/let RAW_DATA = \[.*?\];/s, newDataStr);
+    fs.writeFileSync(INDEX_FILE, html, 'utf8');
+    console.log(`✅ index.html RAW_DATA 已更新`);
+  }
 }
 
 scrape().catch(err => {
