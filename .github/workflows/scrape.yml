@@ -1,37 +1,29 @@
-
 name: 每日抓取加州天天樂開獎號碼
-
 on:
   schedule:
     - cron: '50 1 * * *'
     - cron: '55 2 * * *'
   workflow_dispatch:
-
 jobs:
   scrape:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: 取出程式碼
         uses: actions/checkout@v4
-
       - name: 設定 Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: 安裝套件
         run: npm install axios cheerio
-
       - name: 執行抓取腳本
         run: node scripts/scrape.js
-
       - name: 提交更新資料
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add data/lottery.json
-          git diff --staged --quiet || git commit -m "📊 自動更新開獎資料 $(date +'%Y-%m-%d %H:%M')"
+          git diff --staged --quiet || git commit -m "更新開獎資料"
           git push
